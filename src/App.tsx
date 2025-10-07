@@ -10,6 +10,7 @@ import Weather from "./pages/Weather";
 import Predictions from "./pages/Predictions";
 import NotFound from "./pages/NotFound";
 import Layout from "./components/Layout";
+import AIChatbot from "./components/AIChatbot";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <AIChatbot />
         </Layout>
       </BrowserRouter>
     </TooltipProvider>
