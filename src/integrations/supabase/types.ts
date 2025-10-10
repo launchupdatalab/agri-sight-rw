@@ -14,7 +14,106 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      commodities: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          name: string
+          unit: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          name: string
+          unit?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          name?: string
+          unit?: string
+        }
+        Relationships: []
+      }
+      market_prices: {
+        Row: {
+          active_markets: number
+          change_percent: number
+          commodity_id: string
+          created_at: string
+          id: string
+          price: number
+          recorded_at: string
+          volume: string
+        }
+        Insert: {
+          active_markets?: number
+          change_percent?: number
+          commodity_id: string
+          created_at?: string
+          id?: string
+          price: number
+          recorded_at?: string
+          volume: string
+        }
+        Update: {
+          active_markets?: number
+          change_percent?: number
+          commodity_id?: string
+          created_at?: string
+          id?: string
+          price?: number
+          recorded_at?: string
+          volume?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_prices_commodity_id_fkey"
+            columns: ["commodity_id"]
+            isOneToOne: false
+            referencedRelation: "commodities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_history: {
+        Row: {
+          commodity_id: string
+          created_at: string
+          id: string
+          price: number
+          recorded_at: string
+          week_label: string
+        }
+        Insert: {
+          commodity_id: string
+          created_at?: string
+          id?: string
+          price: number
+          recorded_at?: string
+          week_label: string
+        }
+        Update: {
+          commodity_id?: string
+          created_at?: string
+          id?: string
+          price?: number
+          recorded_at?: string
+          week_label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_history_commodity_id_fkey"
+            columns: ["commodity_id"]
+            isOneToOne: false
+            referencedRelation: "commodities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
