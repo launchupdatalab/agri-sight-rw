@@ -1,4 +1,4 @@
-import { TrendingUp, Users, Wheat, DollarSign, BarChart3, TrendingDown, MapPin, Calendar } from "lucide-react";
+import { TrendingUp, Users, Wheat, DollarSign, BarChart3, TrendingDown, MapPin, Calendar, Filter, Download, RefreshCw, Sprout, CloudRain, Sun, Snowflake } from "lucide-react";
 import StatCard from "@/components/StatCard";
 import ChartCard from "@/components/ChartCard";
 import { 
@@ -8,9 +8,61 @@ import {
 } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import heroImage from "@/assets/hero-agriculture.jpg";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
+  const { toast } = useToast();
+  const [selectedSeason, setSelectedSeason] = useState<string>("current");
+  const [selectedDistrict, setSelectedDistrict] = useState<string>("all");
+  const [marketData, setMarketData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Detect current season based on Rwanda's agricultural calendar
+  const getCurrentSeason = () => {
+    const month = new Date().getMonth() + 1; // 1-12
+    // Season A: September to February (main planting)
+    // Season B: March to August (secondary planting)
+    if (month >= 9 || month <= 2) {
+      return { name: "Season A 2024", icon: CloudRain, period: "Sept - Feb" };
+    } else {
+      return { name: "Season B 2024", icon: Sun, period: "Mar - Aug" };
+    }
+  };
+
+  const currentSeason = getCurrentSeason();
+
+  // Fetch real market data
+  useEffect(() => {
+    const fetchMarketData = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('market_prices')
+          .select(`
+            *,
+            commodities (name, category, unit)
+          `)
+          .order('recorded_at', { ascending: false })
+          .limit(10);
+
+        if (error) throw error;
+        setMarketData(data || []);
+      } catch (error) {
+        console.error('Error fetching market data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMarketData();
+  }, []);
+
   const productionData = [
     { month: "Jan", value: 2400 },
     { month: "Feb", value: 2800 },
@@ -191,59 +243,155 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="space-y-8">
-      {/* Hero Section */}
-      <div className="relative rounded-2xl overflow-hidden h-[300px] bg-gradient-to-r from-primary/90 to-primary">
+    <div className="space-y-8 animate-in fade-in duration-700">
+      {/* Enhanced Hero Section with Season Indicator */}
+      <div className="relative rounded-2xl overflow-hidden h-[400px] bg-gradient-to-br from-primary via-primary/90 to-accent/80 shadow-2xl">
         <img 
           src={heroImage} 
           alt="Rwanda Agriculture" 
-          className="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-40"
+          className="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-30"
         />
-        <div className="relative h-full flex flex-col justify-center px-8 md:px-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-primary-foreground mb-4">
-            Agricultural Intelligence Platform
-          </h1>
-          <p className="text-lg text-primary-foreground/90 max-w-2xl">
-            Real-time data insights to empower Rwanda's agricultural sector with data-driven decisions
-          </p>
+        <div className="absolute inset-0 bg-gradient-to-t from-primary/50 via-transparent to-transparent" />
+        
+        <div className="relative h-full flex flex-col justify-between p-8 md:p-12">
+          <div className="flex items-center gap-3 mb-4">
+            <Badge variant="secondary" className="text-base px-4 py-2 bg-background/90 backdrop-blur-sm border-primary/20">
+              <currentSeason.icon className="h-4 w-4 mr-2" />
+              {currentSeason.name} • {currentSeason.period}
+            </Badge>
+            <Badge variant="outline" className="text-sm px-3 py-1.5 bg-background/80 backdrop-blur-sm border-accent/30">
+              Live Data
+            </Badge>
+          </div>
+          
+          <div>
+            <h1 className="text-5xl md:text-6xl font-bold text-primary-foreground mb-4 drop-shadow-lg">
+              Agricultural Intelligence
+            </h1>
+            <p className="text-xl text-primary-foreground/95 max-w-2xl drop-shadow-md">
+              Real-time insights and data-driven analytics empowering Rwanda's agricultural transformation
+            </p>
+          </div>
+
+          {/* Control Panel */}
+          <div className="flex flex-wrap gap-3">
+            <Select value={selectedSeason} onValueChange={setSelectedSeason}>
+              <SelectTrigger className="w-[200px] bg-background/90 backdrop-blur-sm border-primary/20">
+                <SelectValue placeholder="Select Season" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="current">Current Season</SelectItem>
+                <SelectItem value="seasonA">Season A 2024</SelectItem>
+                <SelectItem value="seasonB">Season B 2024</SelectItem>
+                <SelectItem value="2023">Year 2023</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
+              <SelectTrigger className="w-[200px] bg-background/90 backdrop-blur-sm border-primary/20">
+                <SelectValue placeholder="All Districts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Districts</SelectItem>
+                <SelectItem value="kigali">Kigali</SelectItem>
+                <SelectItem value="huye">Huye</SelectItem>
+                <SelectItem value="musanze">Musanze</SelectItem>
+                <SelectItem value="rubavu">Rubavu</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button variant="secondary" className="bg-background/90 backdrop-blur-sm border-primary/20">
+              <Download className="h-4 w-4 mr-2" />
+              Export Report
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Key Statistics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* Enhanced Key Statistics with Seasonal Context */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Total Production"
+          title="Seasonal Production"
           value="245K tons"
-          change="+12% from last quarter"
+          change="+12% vs last season"
           changeType="positive"
           icon={Wheat}
         />
         <StatCard
           title="Active Farmers"
           value="89,432"
-          change="+5% from last month"
+          change="+5% this season"
           changeType="positive"
           icon={Users}
         />
         <StatCard
-          title="Avg. Market Price"
+          title="Market Price (Avg)"
           value="RWF 450/kg"
-          change="-3% from last week"
-          changeType="negative"
+          change="+2.3% seasonal trend"
+          changeType="positive"
           icon={DollarSign}
         />
         <StatCard
           title="Crop Yield"
-          value="4.2 tons/ha"
+          value="4.2 t/ha"
           change="+8% from last season"
           changeType="positive"
           icon={TrendingUp}
         />
       </div>
 
+      {/* Live Market Insights Card */}
+      {marketData.length > 0 && (
+        <Card className="border-primary/20 shadow-lg bg-gradient-to-br from-card to-card/80">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Sprout className="h-5 w-5 text-primary" />
+                  Live Market Insights
+                </CardTitle>
+                <CardDescription>Real-time commodity prices and trends</CardDescription>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              {marketData.slice(0, 3).map((item: any) => (
+                <div key={item.id} className="p-4 rounded-lg bg-secondary/50 border border-primary/10">
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-semibold text-foreground">{item.commodities?.name}</h4>
+                    <Badge variant={item.change_percent >= 0 ? "default" : "destructive"} className="text-xs">
+                      {item.change_percent >= 0 ? '+' : ''}{item.change_percent}%
+                    </Badge>
+                  </div>
+                  <p className="text-2xl font-bold text-primary">RWF {item.price}</p>
+                  <p className="text-sm text-muted-foreground">per {item.commodities?.unit}</p>
+                  <div className="mt-2 pt-2 border-t border-primary/10 flex justify-between text-xs text-muted-foreground">
+                    <span>{item.active_markets} markets</span>
+                    <span>{item.volume}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Production Overview Section */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold text-foreground">Production Overview</h2>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold text-foreground">Production Overview</h2>
+            <p className="text-muted-foreground mt-1">Track agricultural output and crop performance trends</p>
+          </div>
+          <Badge variant="outline" className="text-sm px-3 py-1.5">
+            {currentSeason.name}
+          </Badge>
+        </div>
         <div className="grid gap-6 md:grid-cols-2">
           <ChartCard
             title="Monthly Production Trends"
@@ -313,8 +461,13 @@ const Dashboard = () => {
       </div>
 
       {/* Seasonal Analysis Section */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold text-foreground">Seasonal Analysis</h2>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold text-foreground">Seasonal Analysis</h2>
+            <p className="text-muted-foreground mt-1">Compare crop production across agricultural seasons</p>
+          </div>
+        </div>
         <ChartCard
           title="Quarterly Production by Crop Type"
           description="Stacked view of crop production trends across quarters"
@@ -342,8 +495,13 @@ const Dashboard = () => {
       </div>
 
       {/* Data Science Analytics Section */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold text-foreground">Data Science Analytics</h2>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold text-foreground">Advanced Analytics</h2>
+            <p className="text-muted-foreground mt-1">Data-driven insights for agricultural decision-making</p>
+          </div>
+        </div>
         <div className="grid gap-6 md:grid-cols-2">
           {/* Scatter Plot - Yield vs Investment */}
           <ChartCard
