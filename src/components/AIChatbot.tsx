@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, X, Send, Loader2 } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, Search } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   role: "user" | "assistant";
@@ -17,6 +18,7 @@ const AIChatbot = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
@@ -101,11 +103,59 @@ const AIChatbot = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const searchMarketData = async (query: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('market_prices')
+        .select(`
+          *,
+          commodities (name, category, unit)
+        `)
+        .order('recorded_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      
+      // Filter results based on query
+      const filtered = data?.filter(item => 
+        item.commodities?.name.toLowerCase().includes(query.toLowerCase()) ||
+        item.commodities?.category.toLowerCase().includes(query.toLowerCase())
+      ) || [];
+      
+      setSearchResults(filtered);
+      
+      if (filtered.length > 0) {
+        const searchContext = `Found ${filtered.length} market data results:\n${filtered.map(item => 
+          `• ${item.commodities?.name}: RWF ${item.price}/${item.commodities?.unit} (${item.change_percent >= 0 ? '+' : ''}${item.change_percent}%)`
+        ).join('\n')}`;
+        
+        return searchContext;
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+    }
+    return null;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
     
-    streamChat(input);
+    // Check if message contains search intent
+    const searchKeywords = ['price', 'market', 'cost', 'ibiciro', 'isoko', 'how much'];
+    const hasSearchIntent = searchKeywords.some(keyword => 
+      input.toLowerCase().includes(keyword)
+    );
+    
+    let enhancedInput = input;
+    if (hasSearchIntent) {
+      const searchContext = await searchMarketData(input);
+      if (searchContext) {
+        enhancedInput = `${input}\n\nCurrent market data:\n${searchContext}`;
+      }
+    }
+    
+    streamChat(enhancedInput);
     setInput("");
   };
 
@@ -162,9 +212,10 @@ const AIChatbot = () => {
                   </p>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
-                  <p>💡 Ask about crop recommendations</p>
-                  <p>📊 Get market price insights</p>
-                  <p>🌾 Learn about seasonal farming</p>
+                  <p>💡 Baza kubyerekeye ibihingwa / Ask about crops</p>
+                  <p>📊 Reba ibiciro by'isoko / Get market prices</p>
+                  <p>🌾 Iga kubyerekeye igihembwe / Learn seasonal farming</p>
+                  <p>🔍 Shakisha ibicuruzwa / Search commodities</p>
                 </div>
               </div>
             ) : (
@@ -231,11 +282,22 @@ const AIChatbot = () => {
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about crops, markets, or farming..."
+                placeholder="Baza ibibazo... / Ask about crops, markets..."
                 disabled={isLoading}
                 className="flex-1 border-green-200 dark:border-green-800 focus-visible:ring-green-500"
                 autoFocus={!isMobile}
               />
+              {searchResults.length > 0 && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setSearchResults([])}
+                  className="shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
               <Button 
                 type="submit" 
                 size="icon" 
